@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SZA Professional Institutional System</title>
+<style>
+:root {
+  --primary:#0f172a;
+  --accent:#2563eb;
+  --bg:#f1f5f9;
+}
+body{margin:0;font-family:Arial;background:var(--bg);} 
+header{background:var(--primary);color:white;padding:15px;display:flex;justify-content:space-between;align-items:center;}
+.container{display:flex;height:100vh;}
+.sidebar{width:230px;background:#1e293b;color:white;padding-top:20px;}
+.sidebar button{display:block;width:100%;padding:12px;background:none;border:none;color:white;text-align:left;cursor:pointer;}
+.sidebar button:hover{background:#334155;}
+.main{flex:1;padding:20px;overflow:auto;}
+.card{background:white;padding:20px;border-radius:8px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,0.1);} 
+input,select{width:100%;padding:10px;margin:8px 0;border:1px solid #ccc;border-radius:4px;}
+button.primary{background:var(--accent);color:white;border:none;padding:10px;border-radius:4px;cursor:pointer;}
+.hidden{display:none;}
+.badge{padding:3px 8px;border-radius:4px;font-size:12px;color:white;}
+.owner{background:#16a34a;} .staff{background:#2563eb;} .student{background:#9333ea;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>SZA MASTER CONTROL SYSTEM</div>
+  <div id="userInfo"></div>
+  <button onclick="logout()">Logout</button>
+</header>
+
+<!-- LOGIN -->
+<div id="loginView" class="main">
+  <div class="card" style="max-width:400px;margin:auto;margin-top:100px;">
+    <h3>Secure Login</h3>
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button class="primary" onclick="login()">Login</button>
+    <p id="loginError" style="color:red"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="container hidden">
+  <div class="sidebar" id="sidebar"></div>
+
+  <div class="main">
+
+    <div id="dashboard">
+      <div class="card"><h2>Dashboard</h2><p id="welcome"></p></div>
+    </div>
+
+    <div id="students" class="hidden">
+      <div class="card">
+        <h2>Student Management</h2>
+        <input id="studentName" placeholder="Student Name">
+        <button class="primary" onclick="addStudent()">Add Student</button>
+        <ul id="studentList"></ul>
+      </div>
+    </div>
+
+    <div id="invoices" class="hidden">
+      <div class="card">
+        <h2>Invoice Generator (Owner Control)</h2>
+        <select id="invoiceStudent"></select>
+        <input id="invAmount" type="number" placeholder="Amount">
+        <select id="invType">
+          <option>Tuition Fees</option>
+          <option>Exam Fees</option>
+          <option>Library Fees</option>
+        </select>
+        <button class="primary" onclick="createInvoice()">Generate Invoice</button>
+      </div>
+
+      <div class="card">
+        <h3>All Invoices</h3>
+        <ul id="invoiceList"></ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ===== MOCK DATABASE =====
+let users = [
+  {username:"owner", password:"admin123", role:"owner"},
+  {username:"staff1", password:"1234", role:"staff"},
+  {username:"student1", password:"1234", role:"student"}
+];
+
+let students = [];
+let invoices = [];
+let currentUser = null;
+
+// ===== LOGIN =====
+function login(){
+  let u = username.value;
+  let p = password.value;
+  let found = users.find(x=>x.username===u && x.password===p);
+
+  if(found){
+    currentUser = found;
+    loginView.classList.add('hidden');
+    app.classList.remove('hidden');
+
+    userInfo.innerHTML = `${found.username} <span class='badge ${found.role}'>${found.role}</span>`;
+    welcome.innerText = `Welcome ${found.username}. Role: ${found.role}`;
+
+    setupSidebar(found.role);
+    renderStudents();
+    renderInvoices();
+  } else {
+    loginError.innerText = "Invalid credentials";
+  }
+}
+
+function logout(){ location.reload(); }
+
+// ===== SIDEBAR CONTROL =====
+function setupSidebar(role){
+  let menu = `<button onclick="view('dashboard')">Dashboard</button>`;
+
+  if(role === 'owner'){
+    menu += `
+      <button onclick="view('students')">Manage Students</button>
+      <button onclick="view('invoices')">Control Invoices</button>
+    `;
+  }
+
+  if(role === 'staff'){
+    menu += `<button onclick="view('students')">View Students</button>`;
+  }
+
+  if(role === 'student'){
+    menu += `<button onclick="view('invoices')">My Invoices</button>`;
+  }
+
+  sidebar.innerHTML = menu;
+}
+
+// ===== VIEW SWITCH =====
+function view(v){
+  ["dashboard","students","invoices"].forEach(id=>{
+    document.getElementById(id).classList.add('hidden');
+  });
+  document.getElementById(v).classList.remove('hidden');
+}
+
+// ===== STUDENTS =====
+function addStudent(){
+  if(currentUser.role !== 'owner') return alert("Only owner allowed");
+
+  let name = studentName.value;
+  if(!name) return;
+
+  students.push(name);
+  renderStudents();
+  studentName.value="";
+}
+
+function renderStudents(){
+  studentList.innerHTML = students.map(s=>`<li>${s}</li>`).join('');
+
+  invoiceStudent.innerHTML = students.map(s=>`<option>${s}</option>`).join('');
+}
+
+// ===== INVOICES =====
+function createInvoice(){
+  if(currentUser.role !== 'owner') return alert("Only owner can generate invoices");
+
+  let student = invoiceStudent.value;
+  let amt = invAmount.value;
+  let type = invType.value;
+
+  if(!student || !amt) return;
+
+  let invoice = {
+    id: 'INV'+Date.now(),
+    student, amt, type, date:new Date().toLocaleDateString()
+  };
+
+  invoices.push(invoice);
+  renderInvoices();
+}
+
+function renderInvoices(){
+  let visibleInvoices = invoices;
+
+  if(currentUser && currentUser.role === 'student'){
+    visibleInvoices = invoices.filter(i=>i.student === currentUser.username);
+  }
+
+  invoiceList.innerHTML = visibleInvoices.map(i=>`
+    <li>
+      <b>${i.id}</b> - ${i.student} - MWK ${i.amt} (${i.type}) - ${i.date}
+    </li>
+  `).join('');
+}
+</script>
+
+</body>
+  </html>
+  
